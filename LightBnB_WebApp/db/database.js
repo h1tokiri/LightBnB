@@ -156,17 +156,70 @@ const getAllReservations = function (guest_id, limit = 10) {
 // };
 
 //LHL
-const getAllProperties = (options, limit = 10) => {
+// const getAllProperties = (options, limit = 10) => {
+//   return pool
+//     .query(`SELECT * FROM properties LIMIT $1`, [limit])
+//     .then((result) => {
+//       console.log(result.rows);
+//       return result.rows;
+//     })
+//     .catch((err) => {
+//       console.log(err.message);
+//     });
+// };
+
+const getAllProperties = function (options, limit = 10) {
+  const queryParams = [];
+  let queryString = `
+  SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  LEFT JOIN property_reviews ON properties.id = property_id
+  `;
+
+  // WHERE clauses
+  let whereClauseAdded = false;
+
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    querystring += `WHERE city LIKE $${queryParams.length} `;
+    whereClauseAdded = true;
+  }
+
+  if (options.owner_id) {
+    queryParams.push(options.owner_id);
+    queryString += `${whereClauseAdded ? 'AND' : 'WHERE'} owner_id = $${queryParams.length} `;
+    whereClauseAdded = true;
+  }
+
+  if (options.minimum_price_per_night && options.maximum_price_per_night) {
+    queryParams.push(options.minimum_price_per_night * 100);
+    queryParams.push(options.maximum_price_per_night * 100);
+    queryString += `${whereClauseAdded ? 'AND' : 'WHERE'} cost_per_night >= $${queryParams.length - 1} AND cost_per_night <= $${queryParams.length} `;
+    whereClauseAdded = true;
+  }
+
+  // Add GROUP BY before adding minimum rating filter
+  queryString += `GROUP BY properties.id `;
+
+  if (options.minimum_rating) {
+    queryParams.push(options.minimum_rating);
+    queryString += `HAVING avg(property_reviews) >= $${queryParams.length} `;
+  }
+
+  // ADD final pieces
+  queryParams.push(limit);
+  queryString += `
+  ORDER BY cost_per_night
+  LIMIT $${queryParams.length};
+  `;
+
   return pool
-    .query(`SELECT * FROM properties LIMIT $1`, [limit])
-    .then((result) => {
-      console.log(result.rows);
-      return result.rows;
-    })
-    .catch((err) => {
-      console.log(err.message);
-    });
+    .query(queryString, queryParams)
+    .then((result) => result.rows);
 };
+
+
+
 
 /**
  * Add a property to the database
