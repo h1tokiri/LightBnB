@@ -1,5 +1,7 @@
 # LightBnB
 
+This is a test project highlighting SQL backend with JS front-end for a bed and breakfast (BNB) application. 
+
 ## Project Structure
 
 ```
